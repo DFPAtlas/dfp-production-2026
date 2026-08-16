@@ -148,7 +148,7 @@ export interface SandboxInstance {
   project_name?: string;
   tester_name?: string;
   tester_email?: string;
-  environment_name?: string;
+  environment_name?: string | null;
 }
 
 export interface SandboxAccount {
