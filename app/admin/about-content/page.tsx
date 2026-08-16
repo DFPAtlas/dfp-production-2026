@@ -76,8 +76,8 @@ export default function AboutContentPage() {
   const fetchData = async () => {
     setLoading(true);
     const [{ data: fData }, { data: tData }] = await Promise.all([
-      supabase.from('about_founder').select('id, name, title, bio, image_url, linkedin_url, twitter_url, sort_order, created_at, updated_at').maybeSingle(),
-      supabase.from('about_team_members').select('id, name, title, bio, image_url, linkedin_url, twitter_url, sort_order, created_at').order('sort_order'),
+      supabase.from('about_founder').select('id, name, role, bio, bio_paragraph_2, image_url, skills').maybeSingle(),
+      supabase.from('about_team_members').select('id, name, role, bio, skills, image_url, section, sort_order').order('sort_order'),
     ]);
     if (fData) setFounder(fData as Founder);
     if (tData) setTeam(tData as TeamMember[]);
