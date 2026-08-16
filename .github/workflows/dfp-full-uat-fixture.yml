@@ -1,0 +1,97 @@
+name: DFP Full UAT Disposable Fixture
+
+on:
+  push:
+    branches:
+      - agent/dfp-browser-uat
+    paths:
+      - '.github/workflows/dfp-full-uat-fixture.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dfp-full-uat-disposable-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  DFP_UAT_SCOPE: full
+  DFP_UAT_BASE_URL: https://digital-footprint.uk
+  DFP_UAT_SUPABASE_URL: https://zjqftnkrmqhmbrtkvafy.supabase.co
+  DFP_UAT_SUPABASE_ANON_KEY: sb_publishable_QOy3-yNqfuMm-XxKyjOk6g_H00hgoA8
+
+jobs:
+  full-browser-uat:
+    name: Full Browser UAT with Disposable Fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out exact UAT SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Record exact UAT identity
+        shell: bash
+        run: |
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          test "$CHECKED_OUT_SHA" = "${{ github.sha }}"
+          {
+            echo "## DFP Disposable Full Browser UAT"
+            echo "- SHA: \`${CHECKED_OUT_SHA}\`"
+            echo "- Run ID: \`${{ github.run_id }}\`"
+            echo "- Production URL: \`${DFP_UAT_BASE_URL}\`"
+            echo "- Temporary fixture prefix: \`dfp-uat-${{ github.run_id }}-*\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Create disposable Auth users and wait for database fixtures
+        run: node tests/uat/bootstrap-runtime.mjs
+
+      - name: Install Playwright test runner without changing lockfile
+        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Full UAT preflight
+        run: node tests/uat/preflight.mjs
+
+      - name: Execute full browser UAT
+        run: npx playwright test --config=playwright.uat.config.mjs
+
+      - name: Publish result summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "### Execution"
+            echo "- Scope: \`full\`"
+            echo "- Temporary credentials were generated and masked inside this job."
+            echo "- Playwright evidence is attached below as an Actions artifact."
+            echo "- Temporary production rows and Auth users must be removed after evidence capture."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfp-full-browser-uat-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 14
