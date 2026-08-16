@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { CommunicationSettings, InterceptResult } from '../types';
+import type { CommunicationSettings } from '../types';
 
 export interface ProjectAdapter {
   projectId: string;
@@ -77,6 +77,23 @@ export async function generateAdapterToken(
   } catch {
     return null;
   }
+}
+
+export function maskEmail(value: string | null | undefined): string {
+  if (!value) return '';
+  const at = value.indexOf('@');
+  if (at <= 0) return '***';
+  const local = value.slice(0, at);
+  const domain = value.slice(at + 1);
+  const visible = local.length > 1 ? local.slice(0, Math.min(2, local.length)) : local;
+  return `${visible}***@${domain}`;
+}
+
+export function maskPhone(value: string | null | undefined): string {
+  if (!value) return '';
+  const compact = value.replace(/\s+/g, '');
+  if (compact.length <= 4) return '****';
+  return `${'*'.repeat(Math.max(4, compact.length - 4))}${compact.slice(-4)}`;
 }
 
 export function formatMessageTypeLabel(type: string): string {
