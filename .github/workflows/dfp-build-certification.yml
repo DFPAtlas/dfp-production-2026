@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: dfp-build-certification-${{ github.workflow }}-${{ github.ref }}
@@ -62,68 +62,6 @@ jobs:
             echo "| Node | \`${{ env.NODE_VERSION }}\` |"
             echo "| Timestamp | \`$(date -u +%Y-%m-%dT%H:%M:%SZ)\` |"
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: One-time diff hygiene cleanup
-        if: github.event_name == 'pull_request' && github.head_ref == 'agent/dfp-build-certification'
-        shell: bash
-        run: |
-          git fetch origin main --depth=1
-          git checkout origin/main -- \
-            app/demos/ai-lead-system/components/LeadWorkspace.tsx \
-            app/demos/guardianhub-preview/lib/data.ts \
-            lib/staff-definitions.ts
-
-          python - <<'PY'
-          from pathlib import Path
-
-          lead = Path('app/demos/ai-lead-system/components/LeadWorkspace.tsx')
-          text = lead.read_text()
-          old = "            onBuildProposal={onBuildProposal}\n            onActivity={onActivity}"
-          new = "            onBuildProposal={onBuildProposal}\n            onApproveProposal={onApproveProposal}\n            onActivity={onActivity}"
-          if text.count(old) != 1:
-              raise SystemExit('LeadWorkspace caller patch anchor mismatch')
-          text = text.replace(old, new, 1)
-          old = "  onBuildProposal,\n  onActivity,\n}: {\n  lead: Lead;"
-          new = "  onBuildProposal,\n  onApproveProposal,\n  onActivity,\n}: {\n  lead: Lead;"
-          if text.count(old) != 1:
-              raise SystemExit('LeadWorkspace destructure patch anchor mismatch')
-          text = text.replace(old, new, 1)
-          old = "  onBuildProposal: () => void;\n  onActivity: (m: string) => void;\n}) {"
-          new = "  onBuildProposal: () => void;\n  onApproveProposal: () => void;\n  onActivity: (m: string) => void;\n}) {"
-          if text.count(old) != 1:
-              raise SystemExit('LeadWorkspace type patch anchor mismatch')
-          lead.write_text(text.replace(old, new, 1))
-
-          guardian = Path('app/demos/guardianhub-preview/lib/data.ts')
-          text = guardian.read_text()
-          old = "  TourStep,\n} from './types';"
-          new = "  TourStep,\n  ViewKey,\n} from './types';"
-          if text.count(old) != 1:
-              raise SystemExit('GuardianHub ViewKey patch anchor mismatch')
-          guardian.write_text(text.replace(old, new, 1))
-
-          staff = Path('lib/staff-definitions.ts')
-          text = staff.read_text()
-          old = "export const MFA_STATE_CONFIG: Record<MfaState, { color: string; bg: string; label: string }> = {"
-          new = "export const MFA_STATE_CONFIG: Record<MfaState, { color: string; bg: string; label: string; border?: string }> = {"
-          if text.count(old) != 1:
-              raise SystemExit('MFA config patch anchor mismatch')
-          staff.write_text(text.replace(old, new, 1))
-          PY
-
-          git diff --check
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            app/demos/ai-lead-system/components/LeadWorkspace.tsx \
-            app/demos/guardianhub-preview/lib/data.ts \
-            lib/staff-definitions.ts
-          if git diff --cached --quiet; then
-            echo "No diff-hygiene cleanup required."
-          else
-            git commit -m "Reduce certification diff noise"
-            git push origin HEAD:agent/dfp-build-certification
-          fi
 
       - name: Install dependencies from lockfile
         run: npm ci
