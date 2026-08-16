@@ -38,14 +38,14 @@ export function useGateState({ publicPaths, loginPath, verifyAccess }: GateState
     let isPublic = false;
 
     if (currentPath) {
-      isPublic = pub && pub.some(
+      isPublic = !!pub?.some(
         (p) => currentPath === p || currentPath.endsWith(p)
       );
     }
 
     if (!isPublic && typeof window !== 'undefined') {
       const browserPath = window.location.pathname;
-      isPublic = pub && pub.some(
+      isPublic = !!pub?.some(
         (p) => browserPath === p || browserPath.endsWith(p)
       );
     }
@@ -93,12 +93,6 @@ export function useGateState({ publicPaths, loginPath, verifyAccess }: GateState
         setDeniedReason('Access verification failed. Please try again.');
       }
     };
-
-    if (!supabase) {
-      setGateState('denied');
-      setDeniedReason('Authentication service is unavailable.');
-      return;
-    }
 
     runCheck();
 
