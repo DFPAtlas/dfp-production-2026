@@ -35,6 +35,32 @@ export interface TemporaryCredential {
   credential_reference: string;
 }
 
+export interface SandboxRuntime {
+  sandboxInstanceId: string;
+  projectId: string;
+  assignmentId: string;
+  sessionId: string;
+  browserContext: unknown | null;
+  activePage: unknown | null;
+  status: SandboxStatus;
+  allowedOrigins: string[];
+  blockedDomains: string[];
+  allowedExternalDomains: string[];
+  startUrl: string;
+  createdAt: number;
+  expiresAt: number;
+  lastActivityAt: number;
+  healthStatus: SandboxHealthStatus;
+  healthError: string | null;
+  downloadPolicy: 'allow' | 'block';
+  uploadPolicy: 'allow' | 'block';
+  temporaryCredentials: TemporaryCredential[];
+  resetCount: number;
+  viewport: { width: number; height: number };
+  callbackUrl: string;
+  workerInstanceId: string;
+}
+
 export interface SandboxCreateResult {
   success: boolean;
   sandbox_instance_id: string;
