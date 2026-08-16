@@ -11,6 +11,17 @@ if (!supabaseUrl || !anonKey || !githubEnv) {
   throw new Error('DFP_UAT_SUPABASE_URL, DFP_UAT_SUPABASE_ANON_KEY and GITHUB_ENV are required');
 }
 
+const settingsResponse = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+  headers: { apikey: anonKey },
+});
+let settings = {};
+try { settings = await settingsResponse.json(); } catch {}
+console.log('DFP_UAT_AUTH_SETTINGS=' + JSON.stringify({
+  status: settingsResponse.status,
+  disable_signup: settings?.disable_signup ?? null,
+  mailer_autoconfirm: settings?.mailer_autoconfirm ?? null,
+}));
+
 const roles = [
   ['CLIENT_A', 'client-a'],
   ['CLIENT_B', 'client-b'],
@@ -24,6 +35,17 @@ const accounts = {};
 
 async function exportEnv(name, value) {
   await appendFile(githubEnv, `${name}=${value}\n`, 'utf8');
+}
+
+function describeError(error) {
+  if (!error) return 'no user returned';
+  const rawMessage = typeof error.message === 'string' ? error.message : JSON.stringify(error.message);
+  return JSON.stringify({
+    name: error.name || null,
+    message: rawMessage || String(error),
+    status: error.status ?? null,
+    code: error.code ?? null,
+  });
 }
 
 for (const [envRole, slug] of roles) {
@@ -48,7 +70,7 @@ for (const [envRole, slug] of roles) {
   });
 
   if (error || !data.user) {
-    throw new Error(`Temporary Auth signup failed for ${slug}: ${error?.message || 'no user returned'}`);
+    throw new Error(`Temporary Auth signup failed for ${slug}: ${describeError(error)}`);
   }
   if (!data.session) {
     throw new Error(`Temporary Auth signup for ${slug} returned no session. Email confirmation is enabled; use the supported Auth Admin API path instead.`);
