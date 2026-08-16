@@ -7,6 +7,9 @@ on:
     paths:
       - '.github/workflows/dfp-full-uat-fixture.yml'
       - 'tests/uat/bootstrap-runtime.mjs'
+      - 'tests/uat/cleanup-runtime.mjs'
+      - 'tests/uat/authenticated-isolation.spec.mjs'
+      - 'tests/uat/public-forms.spec.mjs'
   workflow_dispatch:
 
 permissions:
@@ -22,6 +25,7 @@ env:
   DFP_UAT_BASE_URL: https://digital-footprint.uk
   DFP_UAT_SUPABASE_URL: https://zjqftnkrmqhmbrtkvafy.supabase.co
   DFP_UAT_SUPABASE_ANON_KEY: sb_publishable_QOy3-yNqfuMm-XxKyjOk6g_H00hgoA8
+  DFP_UAT_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.DFP_UAT_SUPABASE_SERVICE_ROLE_KEY }}
 
 jobs:
   full-browser-uat:
@@ -55,10 +59,18 @@ jobs:
             echo "- Temporary fixture prefix: \`dfp-uat-${{ github.run_id }}-*\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Verify protected fixture secret is available
+        shell: bash
+        run: |
+          if [ -z "$DFP_UAT_SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Missing GitHub Actions secret DFP_UAT_SUPABASE_SERVICE_ROLE_KEY"
+            exit 1
+          fi
+
       - name: Install application dependencies
         run: npm ci
 
-      - name: Create disposable Auth users and wait for database fixtures
+      - name: Create disposable Auth and database fixtures
         run: node tests/uat/bootstrap-runtime.mjs
 
       - name: Install Playwright test runner without changing lockfile
@@ -81,9 +93,10 @@ jobs:
             echo ""
             echo "### Execution"
             echo "- Scope: \`full\`"
-            echo "- Temporary credentials were generated and masked inside this job."
-            echo "- Playwright evidence is attached below as an Actions artifact."
-            echo "- Temporary production rows and Auth users must be removed after evidence capture."
+            echo "- Temporary credentials are generated and masked inside this job."
+            echo "- The service-role credential is read only from the protected Actions secret."
+            echo "- Playwright evidence is stored in the Actions artifact."
+            echo "- Disposable rows and Auth users are removed by the guaranteed cleanup step."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Playwright evidence
@@ -96,3 +109,7 @@ jobs:
             test-results
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Remove all disposable UAT fixtures
+        if: always() && env.DFP_UAT_SUPABASE_SERVICE_ROLE_KEY != ''
+        run: node tests/uat/cleanup-runtime.mjs
