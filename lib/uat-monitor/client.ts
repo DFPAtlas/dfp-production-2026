@@ -1,4 +1,5 @@
 import type { UATMonitor, UATMonitorConfig, MonitorStatus, MonitorConnectionStatus, EventCounts, MonitorEvent } from './types';
+export type { UATMonitor } from './types';
 import { createTransport } from './transport';
 import { createNavigationTracker } from './navigation';
 import { createErrorTracker } from './errors';
