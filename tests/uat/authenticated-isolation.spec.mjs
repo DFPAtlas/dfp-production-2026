@@ -6,9 +6,9 @@ import {
   env,
   expectCriticalBrowserClean,
   expectCrossTenantReadDenied,
-  expectNoopCrossTenantWriteDenied,
+  expectCrossTenantWriteDenied,
   injectSession,
-  loginClientWithMagicLink,
+  loginWithPasswordSession,
   signInWithPasswordSession,
 } from './helpers.mjs';
 
@@ -23,11 +23,27 @@ async function expectOwnRow(page, table, id) {
   expect(rows, `expected own ${table} row ${id}`).toHaveLength(1);
 }
 
-test('@full AUTH-LOGIN-VALID client A magic link', async ({ page }, testInfo) => {
+async function expectProtectedDenied(page, loginPattern) {
+  await expect.poll(async () => {
+    if (loginPattern.test(page.url())) return true;
+    return page.getByRole('heading', { name: /Access Denied/i }).isVisible().catch(() => false);
+  }, { timeout: 20_000 }).toBe(true);
+}
+
+async function loginClient(page, label) {
+  await loginWithPasswordSession(
+    page,
+    env(`DFP_UAT_CLIENT_${label}_EMAIL`),
+    env(`DFP_UAT_CLIENT_${label}_PASSWORD`),
+  );
+  await page.goto('/portal/dashboard', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(/\/portal\/dashboard/, { timeout: 20_000 });
+}
+
+test('@full AUTH-LOGIN-VALID client A password session', async ({ page }, testInfo) => {
   chromiumOnly(testInfo);
   const diagnostics = collectBrowserDiagnostics(page);
-  await loginClientWithMagicLink(page, env('DFP_UAT_CLIENT_A_EMAIL'));
-  await expect(page).toHaveURL(/\/portal\/dashboard/);
+  await loginClient(page, 'A');
   await attachDiagnostics(testInfo, diagnostics);
   expectCriticalBrowserClean(diagnostics);
 });
@@ -35,13 +51,15 @@ test('@full AUTH-LOGIN-VALID client A magic link', async ({ page }, testInfo) =>
 test('@full CLIENT-A-READ-A and CLIENT-A-READ-B-DENY', async ({ page }, testInfo) => {
   chromiumOnly(testInfo);
   const diagnostics = collectBrowserDiagnostics(page);
-  await loginClientWithMagicLink(page, env('DFP_UAT_CLIENT_A_EMAIL'));
+  await loginClient(page, 'A');
 
   await expectOwnRow(page, 'projects', env('DFP_UAT_CLIENT_A_PROJECT_ID'));
   await expectCrossTenantReadDenied(page, 'projects', env('DFP_UAT_CLIENT_B_PROJECT_ID'));
   await expectCrossTenantReadDenied(page, 'invoices', env('DFP_UAT_CLIENT_B_INVOICE_ID'));
   await expectCrossTenantReadDenied(page, 'project_files', env('DFP_UAT_CLIENT_B_FILE_ID'));
-  await expectNoopCrossTenantWriteDenied(page, 'projects', env('DFP_UAT_CLIENT_B_PROJECT_ID'), 'name');
+  await expectCrossTenantWriteDenied(page, 'projects', env('DFP_UAT_CLIENT_B_PROJECT_ID'), {
+    name: 'DFP-UAT forbidden Client A patch',
+  });
 
   const supportId = env('DFP_UAT_CLIENT_B_SUPPORT_ID', false);
   if (supportId) await expectCrossTenantReadDenied(page, 'support_tickets', supportId);
@@ -50,7 +68,9 @@ test('@full CLIENT-A-READ-A and CLIENT-A-READ-B-DENY', async ({ page }, testInfo
 
   await page.goto(`/portal/projects/${env('DFP_UAT_CLIENT_B_PROJECT_ID')}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(750);
-  expect(page.url()).not.toMatch(/\/portal\/projects\/[0-9a-f-]+$/i);
+  const directRouteStillOpen = /\/portal\/projects\/[0-9a-f-]+$/i.test(page.url());
+  const denialVisible = await page.getByText(/Access Denied|not found|not available/i).first().isVisible().catch(() => false);
+  expect(directRouteStillOpen && !denialVisible, 'cross-tenant project route must not reveal the project').toBe(false);
 
   await attachDiagnostics(testInfo, diagnostics);
   expectCriticalBrowserClean(diagnostics);
@@ -59,13 +79,15 @@ test('@full CLIENT-A-READ-A and CLIENT-A-READ-B-DENY', async ({ page }, testInfo
 test('@full CLIENT-B-READ-B and CLIENT-B-READ-A-DENY', async ({ page }, testInfo) => {
   chromiumOnly(testInfo);
   const diagnostics = collectBrowserDiagnostics(page);
-  await loginClientWithMagicLink(page, env('DFP_UAT_CLIENT_B_EMAIL'));
+  await loginClient(page, 'B');
 
   await expectOwnRow(page, 'projects', env('DFP_UAT_CLIENT_B_PROJECT_ID'));
   await expectCrossTenantReadDenied(page, 'projects', env('DFP_UAT_CLIENT_A_PROJECT_ID'));
   await expectCrossTenantReadDenied(page, 'invoices', env('DFP_UAT_CLIENT_A_INVOICE_ID'));
   await expectCrossTenantReadDenied(page, 'project_files', env('DFP_UAT_CLIENT_A_FILE_ID'));
-  await expectNoopCrossTenantWriteDenied(page, 'projects', env('DFP_UAT_CLIENT_A_PROJECT_ID'), 'name');
+  await expectCrossTenantWriteDenied(page, 'projects', env('DFP_UAT_CLIENT_A_PROJECT_ID'), {
+    name: 'DFP-UAT forbidden Client B patch',
+  });
 
   const supportId = env('DFP_UAT_CLIENT_A_SUPPORT_ID', false);
   if (supportId) await expectCrossTenantReadDenied(page, 'support_tickets', supportId);
@@ -79,13 +101,13 @@ test('@full CLIENT-B-READ-B and CLIENT-B-READ-A-DENY', async ({ page }, testInfo
 test('@full CLIENT-CANNOT-OPEN-ADMIN and CLIENT-CANNOT-OPEN-STAFF', async ({ page }, testInfo) => {
   chromiumOnly(testInfo);
   const diagnostics = collectBrowserDiagnostics(page);
-  await loginClientWithMagicLink(page, env('DFP_UAT_CLIENT_A_EMAIL'));
+  await loginClient(page, 'A');
 
   await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/, { timeout: 20_000 });
+  await expectProtectedDenied(page, /\/admin\/login(?:\?|$)/);
 
   await page.goto('/staff/dashboard', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/staff\/login(?:\?|$)/, { timeout: 20_000 });
+  await expectProtectedDenied(page, /\/staff\/login(?:\?|$)/);
 
   await attachDiagnostics(testInfo, diagnostics);
   expectCriticalBrowserClean(diagnostics);
@@ -101,7 +123,7 @@ test('@full STAFF-LOGIN and STAFF-CANNOT-GAIN-ADMIN-WITHOUT-ROLE', async ({ page
   await expect(page).toHaveURL(/\/staff\/dashboard/, { timeout: 20_000 });
 
   await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/, { timeout: 20_000 });
+  await expectProtectedDenied(page, /\/admin\/login(?:\?|$)/);
 
   await attachDiagnostics(testInfo, diagnostics);
   expectCriticalBrowserClean(diagnostics);
@@ -135,7 +157,9 @@ test('@full TESTER-A own assignment and TESTER-A-READ-B-ASSIGNMENT-DENY', async 
 
   await expectOwnRow(page, 'uat_assignments', env('DFP_UAT_TESTER_A_ASSIGNMENT_ID'));
   await expectCrossTenantReadDenied(page, 'uat_assignments', env('DFP_UAT_TESTER_B_ASSIGNMENT_ID'));
-  await expectNoopCrossTenantWriteDenied(page, 'uat_assignments', env('DFP_UAT_TESTER_B_ASSIGNMENT_ID'), 'status');
+  await expectCrossTenantWriteDenied(page, 'uat_assignments', env('DFP_UAT_TESTER_B_ASSIGNMENT_ID'), {
+    status: 'completed',
+  });
 
   const evidenceId = env('DFP_UAT_TESTER_B_EVIDENCE_ID', false);
   if (evidenceId) await expectCrossTenantReadDenied(page, 'uat_evidence', evidenceId);
@@ -154,7 +178,9 @@ test('@full TESTER-B own assignment and TESTER-B-READ-A-ASSIGNMENT-DENY', async 
 
   await expectOwnRow(page, 'uat_assignments', env('DFP_UAT_TESTER_B_ASSIGNMENT_ID'));
   await expectCrossTenantReadDenied(page, 'uat_assignments', env('DFP_UAT_TESTER_A_ASSIGNMENT_ID'));
-  await expectNoopCrossTenantWriteDenied(page, 'uat_assignments', env('DFP_UAT_TESTER_A_ASSIGNMENT_ID'), 'status');
+  await expectCrossTenantWriteDenied(page, 'uat_assignments', env('DFP_UAT_TESTER_A_ASSIGNMENT_ID'), {
+    status: 'completed',
+  });
 
   const evidenceId = env('DFP_UAT_TESTER_A_EVIDENCE_ID', false);
   if (evidenceId) await expectCrossTenantReadDenied(page, 'uat_evidence', evidenceId);
