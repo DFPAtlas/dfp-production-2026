@@ -29,7 +29,7 @@ for (const route of publicRoutes) {
     const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
     expect(response, `no navigation response for ${route}`).not.toBeNull();
     expect(response.status(), `${route} should exist and load without HTTP error`).toBeLessThan(400);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 3_000 }).catch(() => {});
     await attachDiagnostics(testInfo, diagnostics);
     expectCriticalBrowserClean(diagnostics);
   });
