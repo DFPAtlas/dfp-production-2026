@@ -22,6 +22,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: dfp-browser-uat-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: '22'
   DFP_UAT_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.scope || 'public' }}
