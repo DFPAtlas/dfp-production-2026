@@ -11,6 +11,8 @@ export const ADMIN_ROLE_KEYS = [
 ] as const;
 
 export type AdminRoleKey = (typeof ADMIN_ROLE_KEYS)[number];
+export type FullAdminRole = 'owner' | 'super_admin' | 'admin';
+export type PrivilegedAdminRole = 'owner' | 'super_admin';
 
 export const ADMIN_ROLE_LABELS: Record<AdminRoleKey, string> = {
   owner: 'Owner',
@@ -24,9 +26,9 @@ export const ADMIN_ROLE_LABELS: Record<AdminRoleKey, string> = {
   auditor: 'Auditor',
 };
 
-export const FULL_ADMIN_ROLES: AdminRoleKey[] = ['owner', 'super_admin', 'admin'];
+export const FULL_ADMIN_ROLES: readonly FullAdminRole[] = ['owner', 'super_admin', 'admin'];
 
-export const PRIVILEGED_ADMIN_ROLES: AdminRoleKey[] = ['owner', 'super_admin'];
+export const PRIVILEGED_ADMIN_ROLES: readonly PrivilegedAdminRole[] = ['owner', 'super_admin'];
 
 export function normaliseAdminRole(raw: string | null | undefined): AdminRoleKey | null {
   if (!raw) return null;
@@ -65,12 +67,12 @@ export function normaliseAdminRole(raw: string | null | undefined): AdminRoleKey
   }
 }
 
-export function isFullAdminRole(role: AdminRoleKey): boolean {
-  return FULL_ADMIN_ROLES.includes(role);
+export function isFullAdminRole(role: AdminRoleKey): role is FullAdminRole {
+  return (FULL_ADMIN_ROLES as readonly AdminRoleKey[]).includes(role);
 }
 
-export function isPrivilegedAdminRole(role: AdminRoleKey): boolean {
-  return PRIVILEGED_ADMIN_ROLES.includes(role);
+export function isPrivilegedAdminRole(role: AdminRoleKey): role is PrivilegedAdminRole {
+  return (PRIVILEGED_ADMIN_ROLES as readonly AdminRoleKey[]).includes(role);
 }
 
 export function getAdminRoleLabel(role: AdminRoleKey): string {
