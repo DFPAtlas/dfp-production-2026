@@ -50,7 +50,7 @@ function ProtectedAdminAccessGate({ children }: { children: React.ReactNode }) {
     router.push('/admin/login');
   };
 
-  if (gateState === 'checking') {
+  if (gateState === 'idle' || gateState === 'checking') {
     return (
       <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center gap-4">
         <div className="w-10 h-10 border-[3px] border-[#7C3AED]/30 border-t-[#7C3AED] rounded-full animate-spin" />
