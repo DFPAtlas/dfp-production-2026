@@ -47,6 +47,7 @@ export interface DemoJob {
   securityType: SecurityType;
   location: string;
   city: string;
+  distance?: number;
   date: string;
   timeStart: string;
   timeEnd: string;
