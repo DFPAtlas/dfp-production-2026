@@ -63,6 +63,24 @@ jobs:
             echo "| Timestamp | \`$(date -u +%Y-%m-%dT%H:%M:%SZ)\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Export main-branch sources for diff hygiene
+        shell: bash
+        run: |
+          git fetch origin main --depth=1
+          mkdir -p baseline/app/demos/ai-lead-system/components
+          mkdir -p baseline/app/demos/guardianhub-preview/lib
+          mkdir -p baseline/lib
+          git show origin/main:app/demos/ai-lead-system/components/LeadWorkspace.tsx > baseline/app/demos/ai-lead-system/components/LeadWorkspace.tsx
+          git show origin/main:app/demos/guardianhub-preview/lib/data.ts > baseline/app/demos/guardianhub-preview/lib/data.ts
+          git show origin/main:lib/staff-definitions.ts > baseline/lib/staff-definitions.ts
+
+      - name: Upload baseline source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfp-main-baseline-${{ github.event.pull_request.head.sha || github.sha }}
+          path: baseline
+          retention-days: 1
+
       - name: Install dependencies from lockfile
         run: npm ci
 
