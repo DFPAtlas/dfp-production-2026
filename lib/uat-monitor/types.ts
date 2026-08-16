@@ -1,4 +1,5 @@
 import type { MonitoringSettings, UatMonitoringEventType } from '@/lib/uat-monitoring-definitions';
+export type { MonitoringTokenResponse } from '@/lib/uat-monitoring-definitions';
 
 export interface UATMonitorConfig {
   endpoint: string;
@@ -48,23 +49,23 @@ export interface EventCounts {
 
 export interface MonitorEvent {
   event_type: UatMonitoringEventType;
-  event_timestamp?: string;
-  page_url?: string;
-  page_path?: string;
-  page_title?: string;
-  event_name?: string;
-  severity?: string;
-  message?: string;
-  source_file?: string;
-  source_line?: number;
-  source_column?: number;
-  request_method?: string;
-  request_path?: string;
-  response_status?: number;
-  duration_ms?: number;
+  event_timestamp?: string | null;
+  page_url?: string | null;
+  page_path?: string | null;
+  page_title?: string | null;
+  event_name?: string | null;
+  severity?: string | null;
+  message?: string | null;
+  source_file?: string | null;
+  source_line?: number | null;
+  source_column?: number | null;
+  request_method?: string | null;
+  request_path?: string | null;
+  response_status?: number | null;
+  duration_ms?: number | null;
   performance_data?: Record<string, unknown>;
   safe_metadata?: Record<string, unknown>;
-  assignment_test_case_id?: string;
+  assignment_test_case_id?: string | null;
 }
 
 export interface TransportResult {
