@@ -76,7 +76,7 @@ export default function RevenueTrendChart({ data, loading }: RevenueTrendChartPr
                   fontSize: '12px',
                   color: '#E2E8F0',
                 }}
-                formatter={(value: number) => [`£${value.toLocaleString()}`, 'Revenue']}
+                formatter={(value) => [`£${Number(value ?? 0).toLocaleString()}`, 'Revenue']}
                 labelStyle={{ color: '#94A3B8', marginBottom: '4px' }}
               />
               <Area
