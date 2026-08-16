@@ -65,23 +65,33 @@ jobs:
         run: npm run lint
 
       - name: Production build
+        id: production_build
         shell: bash
         run: |
           set +e
           set -o pipefail
-          npm run build 2>&1 | tee /tmp/dfp-build.log
+          npm run build 2>&1 | tee dfp-build.log
           BUILD_EXIT=${PIPESTATUS[0]}
           if [ "$BUILD_EXIT" -ne 0 ]; then
             {
               echo ""
               echo "### Production build: FAIL"
               echo '```text'
-              tail -n 120 /tmp/dfp-build.log
+              tail -n 120 dfp-build.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "::error::Production build failed. See the job summary for the final build output."
+            echo "::error::Production build failed. See dfp-build-log artifact for complete output."
             exit "$BUILD_EXIT"
           fi
+
+      - name: Upload failed build log
+        if: failure() && steps.production_build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfp-build-log-${{ github.sha }}
+          path: dfp-build.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Record successful gates
         if: success()
