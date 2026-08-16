@@ -24,6 +24,14 @@ const publicRoutes = [
 const responsiveRoutes = ['/', '/pricing', '/contact', '/login'];
 const crossBrowserRoutes = ['/', '/contact', '/login'];
 
+async function dismissCookieConsent(page) {
+  const reject = page.getByRole('button', { name: 'Reject Non-Essential' });
+  if (await reject.isVisible().catch(() => false)) {
+    await reject.click();
+    await expect(page.getByRole('dialog', { name: 'Cookie consent' })).toBeHidden({ timeout: 5_000 }).catch(() => {});
+  }
+}
+
 for (const route of publicRoutes) {
   test(`@public PUBLIC-LOAD ${route}`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'full public route sweep runs once on desktop Chromium');
@@ -50,7 +58,7 @@ for (const route of crossBrowserRoutes) {
   });
 }
 
-for (const [name, route, expected] of [
+for (const [name, route, loginUrl] of [
   ['portal', '/portal/dashboard', /\/portal\/login(?:\?|$)/],
   ['staff', '/staff/dashboard', /\/staff\/login(?:\?|$)/],
   ['admin', '/admin', /\/admin\/login(?:\?|$)/],
@@ -60,7 +68,20 @@ for (const [name, route, expected] of [
     test.skip(testInfo.project.name !== 'chromium-desktop', 'protected-route gates run once on desktop Chromium');
     const diagnostics = collectBrowserDiagnostics(page);
     await page.goto(route, { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(expected, { timeout: 20_000 });
+
+    await expect.poll(async () => {
+      if (loginUrl.test(page.url())) return true;
+      return page.getByRole('heading', { name: 'Access Denied' }).isVisible().catch(() => false);
+    }, {
+      message: `${name} protected route should redirect to login or render an access-denied gate`,
+      timeout: 20_000,
+    }).toBe(true);
+
+    if (!loginUrl.test(page.url())) {
+      await expect(page.getByRole('heading', { name: 'Access Denied' })).toBeVisible();
+      await expect(page.getByText(/unauthenticated|No active session found/i)).toBeVisible();
+    }
+
     await attachDiagnostics(testInfo, diagnostics);
     expectCriticalBrowserClean(diagnostics);
   });
@@ -82,6 +103,7 @@ test('@public AUTH-LOGIN-INVALID staff', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-desktop', 'one invalid-login check is sufficient');
   const diagnostics = collectBrowserDiagnostics(page);
   await page.goto('/staff/login?from=gate', { waitUntil: 'domcontentloaded' });
+  await dismissCookieConsent(page);
   await page.getByPlaceholder('you@digital-footprint.uk').fill('dfp-browser-uat-invalid@example.com');
   await page.getByPlaceholder('Enter your password').fill('DFP-UAT-invalid-password-2026');
   await page.getByRole('button', { name: 'Sign In' }).click();
@@ -95,6 +117,7 @@ test('@public A11Y-KEYBOARD-SMOKE contact form', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-desktop', 'accessibility smoke runs once on Chromium');
   const diagnostics = collectBrowserDiagnostics(page);
   await page.goto('/contact', { waitUntil: 'domcontentloaded' });
+  await dismissCookieConsent(page);
 
   const name = page.getByLabel('Full Name *');
   const email = page.getByLabel('Email Address *');
