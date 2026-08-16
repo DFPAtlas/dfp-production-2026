@@ -2,16 +2,19 @@
 
 import Script from "next/script";
 import { useEffect, useState, useRef } from "react";
-import { hasConsentFor, getConsentState } from "@/lib/analytics";
-import type { ConsentState } from "@/lib/analytics-definitions";
-import { CONSENT_CATEGORIES, CONSENT_STORAGE_KEY } from "@/lib/analytics-definitions";
+import { hasConsentFor } from "@/lib/analytics";
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 declare global {
   interface Window {
     GA_LOADED?: boolean;
-    gtag?: (...args: any[]) => void;
+    gtag: {
+      (command: 'js', date: Date): void;
+      (command: 'config', id: string, params?: Record<string, unknown>): void;
+      (command: 'event', name: string, params?: Record<string, unknown>): void;
+      (command: 'consent', action: string, params?: Record<string, unknown>): void;
+    };
   }
 }
 
