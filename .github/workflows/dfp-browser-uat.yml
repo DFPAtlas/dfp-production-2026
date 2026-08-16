@@ -1,0 +1,140 @@
+name: DFP Browser UAT
+
+on:
+  push:
+    branches:
+      - agent/dfp-browser-uat
+    paths:
+      - '.github/workflows/dfp-browser-uat.yml'
+      - 'playwright.uat.config.mjs'
+      - 'tests/uat/**'
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: UAT scope to execute
+        required: true
+        default: public
+        type: choice
+        options:
+          - public
+          - full
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  DFP_UAT_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.scope || 'public' }}
+  DFP_UAT_BASE_URL: ${{ vars.DFP_UAT_BASE_URL || 'https://digital-footprint.uk' }}
+  DFP_UAT_SUPABASE_URL: ${{ secrets.DFP_UAT_SUPABASE_URL }}
+  DFP_UAT_SUPABASE_ANON_KEY: ${{ secrets.DFP_UAT_SUPABASE_ANON_KEY }}
+  DFP_UAT_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.DFP_UAT_SUPABASE_SERVICE_ROLE_KEY }}
+  DFP_UAT_CLIENT_A_EMAIL: ${{ secrets.DFP_UAT_CLIENT_A_EMAIL }}
+  DFP_UAT_CLIENT_B_EMAIL: ${{ secrets.DFP_UAT_CLIENT_B_EMAIL }}
+  DFP_UAT_CLIENT_A_PROJECT_ID: ${{ secrets.DFP_UAT_CLIENT_A_PROJECT_ID }}
+  DFP_UAT_CLIENT_B_PROJECT_ID: ${{ secrets.DFP_UAT_CLIENT_B_PROJECT_ID }}
+  DFP_UAT_CLIENT_A_INVOICE_ID: ${{ secrets.DFP_UAT_CLIENT_A_INVOICE_ID }}
+  DFP_UAT_CLIENT_B_INVOICE_ID: ${{ secrets.DFP_UAT_CLIENT_B_INVOICE_ID }}
+  DFP_UAT_CLIENT_A_FILE_ID: ${{ secrets.DFP_UAT_CLIENT_A_FILE_ID }}
+  DFP_UAT_CLIENT_B_FILE_ID: ${{ secrets.DFP_UAT_CLIENT_B_FILE_ID }}
+  DFP_UAT_CLIENT_A_SUPPORT_ID: ${{ secrets.DFP_UAT_CLIENT_A_SUPPORT_ID }}
+  DFP_UAT_CLIENT_B_SUPPORT_ID: ${{ secrets.DFP_UAT_CLIENT_B_SUPPORT_ID }}
+  DFP_UAT_CLIENT_A_MESSAGE_THREAD_ID: ${{ secrets.DFP_UAT_CLIENT_A_MESSAGE_THREAD_ID }}
+  DFP_UAT_CLIENT_B_MESSAGE_THREAD_ID: ${{ secrets.DFP_UAT_CLIENT_B_MESSAGE_THREAD_ID }}
+  DFP_UAT_STAFF_EMAIL: ${{ secrets.DFP_UAT_STAFF_EMAIL }}
+  DFP_UAT_STAFF_PASSWORD: ${{ secrets.DFP_UAT_STAFF_PASSWORD }}
+  DFP_UAT_ADMIN_EMAIL: ${{ secrets.DFP_UAT_ADMIN_EMAIL }}
+  DFP_UAT_ADMIN_PASSWORD: ${{ secrets.DFP_UAT_ADMIN_PASSWORD }}
+  DFP_UAT_TESTER_A_EMAIL: ${{ secrets.DFP_UAT_TESTER_A_EMAIL }}
+  DFP_UAT_TESTER_A_PASSWORD: ${{ secrets.DFP_UAT_TESTER_A_PASSWORD }}
+  DFP_UAT_TESTER_B_EMAIL: ${{ secrets.DFP_UAT_TESTER_B_EMAIL }}
+  DFP_UAT_TESTER_B_PASSWORD: ${{ secrets.DFP_UAT_TESTER_B_PASSWORD }}
+  DFP_UAT_TESTER_A_ASSIGNMENT_ID: ${{ secrets.DFP_UAT_TESTER_A_ASSIGNMENT_ID }}
+  DFP_UAT_TESTER_B_ASSIGNMENT_ID: ${{ secrets.DFP_UAT_TESTER_B_ASSIGNMENT_ID }}
+  DFP_UAT_TESTER_A_EVIDENCE_ID: ${{ secrets.DFP_UAT_TESTER_A_EVIDENCE_ID }}
+  DFP_UAT_TESTER_B_EVIDENCE_ID: ${{ secrets.DFP_UAT_TESTER_B_EVIDENCE_ID }}
+  DFP_UAT_ALLOW_PRODUCTION_FORM_WRITES: ${{ secrets.DFP_UAT_ALLOW_PRODUCTION_FORM_WRITES }}
+
+jobs:
+  browser-uat:
+    name: Browser UAT (${{ github.event_name == 'workflow_dispatch' && inputs.scope || 'public' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out exact UAT SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Record UAT identity
+        shell: bash
+        run: |
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          if [ "$CHECKED_OUT_SHA" != "${{ github.sha }}" ]; then
+            echo "::error::Checked-out SHA does not match GitHub event SHA"
+            exit 1
+          fi
+          {
+            echo "## DFP Browser UAT"
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Repository | \`${{ github.repository }}\` |"
+            echo "| SHA | \`${CHECKED_OUT_SHA}\` |"
+            echo "| Scope | \`${DFP_UAT_SCOPE}\` |"
+            echo "| Base URL | \`${DFP_UAT_BASE_URL}\` |"
+            echo "| Run ID | \`${{ github.run_id }}\` |"
+            echo "| Timestamp | \`$(date -u +%Y-%m-%dT%H:%M:%SZ)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install Playwright test runner without changing lockfile
+        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: UAT preflight
+        run: node tests/uat/preflight.mjs
+
+      - name: Execute public browser UAT
+        if: env.DFP_UAT_SCOPE == 'public'
+        run: npx playwright test --config=playwright.uat.config.mjs --grep @public
+
+      - name: Execute full browser UAT
+        if: env.DFP_UAT_SCOPE == 'full'
+        run: npx playwright test --config=playwright.uat.config.mjs
+
+      - name: Publish result summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "### Execution"
+            echo "- Scope: \`${DFP_UAT_SCOPE}\`"
+            echo "- Browser evidence is stored in the uploaded Playwright artifact."
+            if [ "$DFP_UAT_SCOPE" = "public" ]; then
+              echo "- Authenticated tenant-isolation and production form-write tests were not executed in public scope."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfp-browser-uat-${{ github.sha }}-${{ env.DFP_UAT_SCOPE }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 14
