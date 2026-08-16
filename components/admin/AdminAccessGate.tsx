@@ -32,10 +32,9 @@ function ProtectedAdminAccessGate({ children }: { children: React.ReactNode }) {
 
   const verifyAccess = useCallback(async (session: Session): Promise<GateVerifyResult> => {
     const result = await verifyAdminAccess(session);
-    return {
-      allowed: result.allowed,
-      reason: result.reason,
-    };
+    return result.allowed
+      ? { allowed: true }
+      : { allowed: false, reason: result.reason };
   }, []);
 
   const { gateState, deniedReason } = useGateState({
@@ -47,7 +46,7 @@ function ProtectedAdminAccessGate({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     if (navigationInProgressRef.current) return;
     navigationInProgressRef.current = true;
-    if (supabase) await supabase.auth.signOut();
+    await supabase.auth.signOut();
     router.push('/admin/login');
   };
 
