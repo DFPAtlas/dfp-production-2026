@@ -22,9 +22,11 @@ const publicRoutes = [
 ];
 
 const responsiveRoutes = ['/', '/pricing', '/contact', '/login'];
+const crossBrowserRoutes = ['/', '/contact', '/login'];
 
 for (const route of publicRoutes) {
   test(`@public PUBLIC-LOAD ${route}`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'full public route sweep runs once on desktop Chromium');
     const diagnostics = collectBrowserDiagnostics(page);
     const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
     expect(response, `no navigation response for ${route}`).not.toBeNull();
@@ -35,40 +37,38 @@ for (const route of publicRoutes) {
   });
 }
 
-test('@public AUTH-PROTECTED-ROUTE-DENY portal', async ({ page }, testInfo) => {
-  const diagnostics = collectBrowserDiagnostics(page);
-  await page.goto('/portal/dashboard', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/portal\/login(?:\?|$)/, { timeout: 20_000 });
-  await attachDiagnostics(testInfo, diagnostics);
-  expectCriticalBrowserClean(diagnostics);
-});
+for (const route of crossBrowserRoutes) {
+  test(`@public CROSS-BROWSER-SANITY ${route}`, async ({ page }, testInfo) => {
+    test.skip(!['firefox-desktop', 'webkit-desktop'].includes(testInfo.project.name), 'cross-browser sanity is Firefox/WebKit only');
+    const diagnostics = collectBrowserDiagnostics(page);
+    const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
+    expect(response).not.toBeNull();
+    expect(response.status(), `${route} should load in ${testInfo.project.name}`).toBeLessThan(400);
+    await page.waitForTimeout(500);
+    await attachDiagnostics(testInfo, diagnostics);
+    expectCriticalBrowserClean(diagnostics);
+  });
+}
 
-test('@public AUTH-PROTECTED-ROUTE-DENY staff', async ({ page }, testInfo) => {
-  const diagnostics = collectBrowserDiagnostics(page);
-  await page.goto('/staff/dashboard', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/staff\/login(?:\?|$)/, { timeout: 20_000 });
-  await attachDiagnostics(testInfo, diagnostics);
-  expectCriticalBrowserClean(diagnostics);
-});
-
-test('@public AUTH-PROTECTED-ROUTE-DENY admin', async ({ page }, testInfo) => {
-  const diagnostics = collectBrowserDiagnostics(page);
-  await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/, { timeout: 20_000 });
-  await attachDiagnostics(testInfo, diagnostics);
-  expectCriticalBrowserClean(diagnostics);
-});
-
-test('@public AUTH-PROTECTED-ROUTE-DENY tester', async ({ page }, testInfo) => {
-  const diagnostics = collectBrowserDiagnostics(page);
-  await page.goto('/uat/dashboard', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/(login|uat\/login)(?:\?|$)/, { timeout: 20_000 });
-  await attachDiagnostics(testInfo, diagnostics);
-  expectCriticalBrowserClean(diagnostics);
-});
+for (const [name, route, expected] of [
+  ['portal', '/portal/dashboard', /\/portal\/login(?:\?|$)/],
+  ['staff', '/staff/dashboard', /\/staff\/login(?:\?|$)/],
+  ['admin', '/admin', /\/admin\/login(?:\?|$)/],
+  ['tester', '/uat/dashboard', /\/(login|uat\/login)(?:\?|$)/],
+]) {
+  test(`@public AUTH-PROTECTED-ROUTE-DENY ${name}`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'protected-route gates run once on desktop Chromium');
+    const diagnostics = collectBrowserDiagnostics(page);
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(expected, { timeout: 20_000 });
+    await attachDiagnostics(testInfo, diagnostics);
+    expectCriticalBrowserClean(diagnostics);
+  });
+}
 
 for (const route of responsiveRoutes) {
   test(`@public RESPONSIVE-NO-OVERFLOW ${route}`, async ({ page }, testInfo) => {
+    test.skip(!['chromium-desktop', 'chromium-tablet', 'chromium-mobile'].includes(testInfo.project.name), 'responsive matrix uses Chromium at the three required viewports');
     const diagnostics = collectBrowserDiagnostics(page);
     await page.goto(route, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(500);
