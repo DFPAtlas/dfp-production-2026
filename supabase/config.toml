@@ -1,0 +1,17 @@
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.milestone-checkout]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.dfp-website-checkout]
+verify_jwt = false
+
+[functions.dfp-website-checkout-status]
+verify_jwt = false
+
+[functions.dfp-health-probe]
+verify_jwt = false

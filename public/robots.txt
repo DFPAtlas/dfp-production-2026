@@ -1,0 +1,60 @@
+User-agent: *
+
+# Public pages
+Allow: /
+Allow: /about
+Allow: /services
+Allow: /industries
+Allow: /products
+Allow: /products/quickguard
+Allow: /products/guardianhub
+Allow: /products/lethub
+Allow: /products/synqoro
+Allow: /demos
+Allow: /demos/*
+Allow: /case-studies
+Allow: /blog
+Allow: /team
+Allow: /team/*
+Allow: /careers
+Allow: /careers/*
+Allow: /help
+Allow: /help/*
+Allow: /support
+Allow: /support/status
+Allow: /support/request
+Allow: /partners
+Allow: /partners/*
+Allow: /security
+Allow: /accessibility
+Allow: /login
+Allow: /request-demo
+Allow: /contact
+Allow: /uat-testing
+Allow: /privacy
+Allow: /terms
+Allow: /cookie-policy
+Allow: /cookie-preferences
+
+# Private pages
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /portal
+Disallow: /portal/*
+Disallow: /staff
+Disallow: /staff/*
+Disallow: /uat
+Disallow: /uat/*
+Disallow: /pbx
+Disallow: /pbx/*
+Disallow: /account
+Disallow: /account/*
+Disallow: /auth
+Disallow: /auth/*
+Disallow: /email
+Disallow: /email/*
+Disallow: /api
+Disallow: /api/*
+
+# Sitemap
+Sitemap: https://digital-footprint.uk/sitemap.xml

@@ -1,0 +1,60 @@
+name: Stripe PR validation
+
+on:
+  push:
+    branches:
+      - agent/stripe-public-checkout-hardening
+    paths:
+      - 'app/checkout/**'
+      - 'supabase/functions/dfp-website-checkout/**'
+      - 'supabase/functions/dfp-website-checkout-status/**'
+      - 'supabase/config.toml'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/stripe-pr-validation.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/checkout/**'
+      - 'supabase/functions/dfp-website-checkout/**'
+      - 'supabase/functions/dfp-website-checkout-status/**'
+      - 'supabase/config.toml'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/stripe-pr-validation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: TypeScript, ESLint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
