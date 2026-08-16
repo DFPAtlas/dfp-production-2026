@@ -1,0 +1,80 @@
+name: DFP Build Certification
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dfp-build-certification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  build-certification:
+    name: Exact SHA build certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Capture candidate identity
+        shell: bash
+        run: |
+          APP_VERSION="$(node -p "require('./package.json').version")"
+          {
+            echo "## DFP Build Certification"
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Repository | \`${{ github.repository }}\` |"
+            echo "| Ref | \`${{ github.ref_name }}\` |"
+            echo "| Full SHA | \`${{ github.sha }}\` |"
+            echo "| Run ID | \`${{ github.run_id }}\` |"
+            echo "| App version | \`${APP_VERSION}\` |"
+            echo "| Node | \`${{ env.NODE_VERSION }}\` |"
+            echo "| Timestamp | \`$(date -u +%Y-%m-%dT%H:%M:%SZ)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      - name: Record successful gates
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "### Gates"
+            echo "- npm ci: PASS"
+            echo "- typecheck: PASS"
+            echo "- lint: PASS"
+            echo "- production build: PASS"
+          } >> "$GITHUB_STEP_SUMMARY"
