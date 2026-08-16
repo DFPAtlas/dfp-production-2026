@@ -6,6 +6,7 @@ on:
       - agent/dfp-browser-uat
     paths:
       - '.github/workflows/dfp-full-uat-fixture.yml'
+      - 'tests/uat/bootstrap-runtime.mjs'
   workflow_dispatch:
 
 permissions:
