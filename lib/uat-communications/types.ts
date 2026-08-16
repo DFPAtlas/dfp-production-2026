@@ -3,6 +3,7 @@ export type MessageDirection = 'outbound' | 'inbound_test';
 export type MessageStatus = 'intercepted' | 'simulated_delivered' | 'simulated_failed' | 'blocked' | 'quarantined' | 'reviewed' | 'expired';
 export type DeliverySimulation = 'intercept_only' | 'simulate_delivered' | 'simulate_failed';
 export type EventType = 'captured' | 'blocked' | 'simulated_delivered' | 'simulated_failed' | 'opened_in_test_mailbox' | 'attachment_downloaded' | 'linked_to_test_case' | 'linked_to_feedback' | 'quarantined' | 'expired';
+export type MessageFilter = 'all' | 'email' | 'sms' | 'webhook' | 'delivered' | 'failed' | 'blocked';
 
 export interface UATSandboxMessage {
   id: string;
@@ -32,9 +33,9 @@ export interface UATSandboxMessage {
   created_at: string;
   updated_at: string;
   expires_at: string | null;
-  attachment_count?: number;
-  linked_cases?: number;
-  linked_feedback?: number;
+  attachment_count: number;
+  linked_cases: number;
+  linked_feedback: number;
 }
 
 export interface UATSandboxMessageEvent {

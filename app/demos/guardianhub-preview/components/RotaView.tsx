@@ -37,6 +37,7 @@ export default function RotaView({ shifts, availableGuards, onAssignGuard }: Rot
         {shifts.map((shift) => {
           const statusColor = shift.status === 'covered' ? 'border-emerald-500/15' : shift.status === 'attention' ? 'border-amber-500/15' : 'border-red-500/15';
           const statusBg = shift.status === 'covered' ? 'bg-emerald-500/[0.03]' : shift.status === 'attention' ? 'bg-amber-500/[0.03]' : 'bg-red-500/[0.03]';
+          const openSlots = shift.requiredGuards - shift.assignedGuards.length;
 
           return (
             <div key={shift.id} className={`rounded-xl border ${statusColor} ${statusBg} p-4`}>
@@ -64,9 +65,9 @@ export default function RotaView({ shifts, availableGuards, onAssignGuard }: Rot
                     </span>
                   ) : null;
                 })}
-                {shift.assignedGuards.length < shift.requiredGuards && (
+                {openSlots > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.02] border border-white/[0.06] px-2.5 py-1 text-[10px] text-slate-500">
-                    {shift.requiredGuards - shift.assignedGuards} slot{shift.requiredGuards - shift.assignedGuards > 1 ? 's' : ''} open
+                    {openSlots} slot{openSlots > 1 ? 's' : ''} open
                   </span>
                 )}
               </div>

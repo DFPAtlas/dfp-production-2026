@@ -1,0 +1,115 @@
+name: DFP Build Certification
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - agent/dfp-build-certification
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dfp-build-certification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  build-certification:
+    name: Exact SHA build certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out exact candidate SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Capture candidate identity
+        shell: bash
+        run: |
+          APP_VERSION="$(node -p "require('./package.json').version")"
+          CANDIDATE_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          if [ "$CHECKED_OUT_SHA" != "$CANDIDATE_SHA" ]; then
+            echo "::error::Checked-out SHA does not match candidate SHA"
+            exit 1
+          fi
+          {
+            echo "## DFP Build Certification"
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Repository | \`${{ github.repository }}\` |"
+            echo "| Ref | \`${{ github.head_ref || github.ref_name }}\` |"
+            echo "| Full candidate SHA | \`${CANDIDATE_SHA}\` |"
+            echo "| Checked-out SHA | \`${CHECKED_OUT_SHA}\` |"
+            echo "| Run ID | \`${{ github.run_id }}\` |"
+            echo "| App version | \`${APP_VERSION}\` |"
+            echo "| Node | \`${{ env.NODE_VERSION }}\` |"
+            echo "| Timestamp | \`$(date -u +%Y-%m-%dT%H:%M:%SZ)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Production build
+        id: production_build
+        shell: bash
+        run: |
+          set +e
+          set -o pipefail
+          npm run build 2>&1 | tee dfp-build.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          if [ "$BUILD_EXIT" -ne 0 ]; then
+            {
+              echo ""
+              echo "### Production build: FAIL"
+              echo '```text'
+              tail -n 120 dfp-build.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Production build failed. See dfp-build-log artifact for complete output."
+            exit "$BUILD_EXIT"
+          fi
+
+      - name: Upload failed build log
+        if: failure() && steps.production_build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfp-build-log-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dfp-build.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Record successful gates
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "### Gates"
+            echo "- npm ci: PASS"
+            echo "- typecheck: PASS"
+            echo "- lint: PASS"
+            echo "- production build: PASS"
+          } >> "$GITHUB_STEP_SUMMARY"

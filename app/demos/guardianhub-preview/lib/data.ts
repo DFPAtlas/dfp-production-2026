@@ -8,6 +8,7 @@ import type {
   IntelligenceInsight,
   ClientReport,
   TourStep,
+  ViewKey,
 } from './types';
 
 export const SITES: DemoSite[] = [

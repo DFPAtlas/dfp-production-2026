@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { allDemos, accentMap } from '../lib/data';
 import { useReducedMotion } from './useReducedMotion';
 
+const PROJECT_HEALTH: Array<[string, number]> = [
+  ['Client portal redesign', 78],
+  ['Automation build Phase 2', 64],
+  ['Website platform launch', 91],
+];
+
 export default function FeaturedExperience() {
   const demo = allDemos[0];
   const a = accentMap[demo.accent];
@@ -154,7 +160,7 @@ export default function FeaturedExperience() {
                 <div className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
                   <p className="text-[9px] uppercase tracking-wider text-slate-500">Project Health</p>
                   <div className="mt-2 space-y-2">
-                    {[['Client portal redesign', 78], ['Automation build Phase 2', 64], ['Website platform launch', 91]].map(([n, w]) => (
+                    {PROJECT_HEALTH.map(([n, w]) => (
                       <div key={n}>
                         <div className="mb-1 flex justify-between text-[9px]"><span className="text-slate-400">{n}</span><span className="text-slate-500">{w}%</span></div>
                         <div className="h-1.5 rounded-full bg-slate-800">

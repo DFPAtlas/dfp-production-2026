@@ -32,7 +32,7 @@ function formatBytes(bytes: number | null): string {
 function sumCounts(counts: unknown): number {
   if (!counts || typeof counts !== 'object') return 0;
   const obj = counts as Record<string, unknown>;
-  return Object.values(obj).reduce((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
+  return Object.values(obj).reduce<number>((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
 }
 
 function moduleCount(modules: unknown): number {

@@ -265,7 +265,7 @@ export const SERVICE_ACCOUNT_STATUS_CONFIG: Record<string, { color: string; bg: 
   'Revoked': { color: 'text-red-400', bg: 'bg-red-500/10' },
 };
 
-export const MFA_STATE_CONFIG: Record<MfaState, { color: string; bg: string; label: string }> = {
+export const MFA_STATE_CONFIG: Record<MfaState, { color: string; bg: string; label: string; border?: string }> = {
   'Not Enrolled': { color: 'text-red-400', bg: 'bg-red-500/10', label: 'Not Enrolled' },
   'Enrolled': { color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Enrolled' },
   'Verification Required': { color: 'text-amber-400', bg: 'bg-amber-500/10', label: 'Verification Required' },

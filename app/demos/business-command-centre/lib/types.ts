@@ -29,7 +29,7 @@ export interface Project {
   due: string;
   nextAction: string;
   budget: string;
-  health: 'On track' | 'At Risk' | 'Healthy';
+  health: 'On Track' | 'At Risk' | 'Healthy';
   sponsor: string;
   priority: 'High' | 'Medium' | 'Low';
   lastUpdated: string;

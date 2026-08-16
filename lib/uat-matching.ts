@@ -6,6 +6,7 @@ import {
   type TesterMatchResult,
   type MatchingDimension,
   type SuitabilityLabel,
+  type PracticalBugReport,
   DEVICE_KEY_MAP,
   INDUSTRY_KEY_MAP,
 } from './uat-application-types';
