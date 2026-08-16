@@ -8,6 +8,7 @@ on:
       - '.github/workflows/dfp-browser-uat.yml'
       - 'playwright.uat.config.mjs'
       - 'tests/uat/**'
+      - 'components/admin/AdminAccessGate.tsx'
   workflow_dispatch:
     inputs:
       scope:
