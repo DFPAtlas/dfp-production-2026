@@ -41,7 +41,7 @@ export function createNetworkTracker(
       event_type: failed ? 'api_failure' : 'api_slow',
       request_method: method,
       request_path: path,
-      response_status: status || null,
+      response_status: status ?? null,
       duration_ms: duration,
       severity: failed ? 'error' : 'warning',
       message: failed ? `Request failed: ${method} ${path}` : `Slow request: ${method} ${path} (${duration}ms)`,
@@ -57,7 +57,6 @@ export function createNetworkTracker(
       if (isBlocked(url)) return originalFetch(...args);
 
       const startTime = performance.now();
-      let failed = false;
 
       try {
         const res = await originalFetch(...args);
@@ -70,30 +69,31 @@ export function createNetworkTracker(
         }
         return res;
       } catch (err) {
-        failed = true;
         const duration = Math.round(performance.now() - startTime);
         sendNetworkEvent(method, url, undefined, duration, true);
         throw err;
       }
     };
 
-    XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, method: string, url: string | URL, ...rest: any[]) {
-      (this as any).__uat_method = method;
-      (this as any).__uat_url = typeof url === 'string' ? url : url.href;
-      (this as any).__uat_start = 0;
-      return originalXHROpen.call(this, method, url, ...rest);
-    };
+    XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, method: string, url: string | URL, ...rest: unknown[]) {
+      (this as XMLHttpRequest & { __uat_method?: string; __uat_url?: string; __uat_start?: number }).__uat_method = method;
+      (this as XMLHttpRequest & { __uat_method?: string; __uat_url?: string; __uat_start?: number }).__uat_url = typeof url === 'string' ? url : url.href;
+      (this as XMLHttpRequest & { __uat_method?: string; __uat_url?: string; __uat_start?: number }).__uat_start = 0;
+      return (originalXHROpen as (...args: unknown[]) => void).call(this, method, url, ...rest);
+    } as typeof XMLHttpRequest.prototype.open;
 
-    XMLHttpRequest.prototype.send = function (this: XMLHttpRequest, ...args: any[]) {
-      const url = (this as any).__uat_url;
-      const method = (this as any).__uat_method || 'GET';
+    XMLHttpRequest.prototype.send = function (this: XMLHttpRequest, ...args: Parameters<XMLHttpRequest['send']>) {
+      const tracked = this as XMLHttpRequest & { __uat_method?: string; __uat_url?: string; __uat_start?: number };
+      const url = tracked.__uat_url;
+      const method = tracked.__uat_method || 'GET';
 
       if (!url || isBlocked(url)) return originalXHRSend.call(this, ...args);
 
-      (this as any).__uat_start = performance.now();
+      tracked.__uat_start = performance.now();
 
       this.addEventListener('loadend', function () {
-        const start = (this as any).__uat_start;
+        const current = this as XMLHttpRequest & { __uat_start?: number };
+        const start = current.__uat_start;
         if (!start) return;
         const duration = Math.round(performance.now() - start);
         const failed = this.status === 0 || this.status >= 400;
