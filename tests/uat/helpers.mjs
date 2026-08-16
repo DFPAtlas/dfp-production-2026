@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js';
 export const BASE_URL = process.env.DFP_UAT_BASE_URL || 'https://digital-footprint.uk';
 export const SUPABASE_URL = process.env.DFP_UAT_SUPABASE_URL || '';
 export const SUPABASE_ANON_KEY = process.env.DFP_UAT_SUPABASE_ANON_KEY || '';
-export const SUPABASE_SERVICE_ROLE_KEY = process.env.DFP_UAT_SUPABASE_SERVICE_ROLE_KEY || '';
 
 export function env(name, required = true) {
   const value = process.env[name]?.trim();
@@ -92,25 +91,10 @@ export async function injectSession(page, session) {
   }, { storageKey: key, value: session });
 }
 
-export async function clientMagicLink(email) {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase URL and service-role key are required');
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
-  const { data, error } = await admin.auth.admin.generateLink({
-    type: 'magiclink',
-    email,
-    options: { redirectTo: `${BASE_URL}/portal/dashboard` },
-  });
-  if (error || !data?.properties?.action_link) throw new Error(`Could not generate client magic link: ${error?.message || 'no action link returned'}`);
-  return data.properties.action_link;
-}
-
-export async function loginClientWithMagicLink(page, email) {
-  const link = await clientMagicLink(email);
-  await page.goto(link, { waitUntil: 'domcontentloaded' });
-  await page.waitForURL(/\/portal\/(dashboard|login)/, { timeout: 30_000 });
-  expect(page.url()).toContain('/portal/dashboard');
+export async function loginWithPasswordSession(page, email, password) {
+  const session = await signInWithPasswordSession(email, password);
+  await injectSession(page, session);
+  return session;
 }
 
 export async function getBrowserAccessToken(page) {
@@ -155,16 +139,6 @@ export async function browserRestById(page, table, id, method = 'GET', body = un
   });
 }
 
-export async function serviceRoleRowById(table, id, select = '*') {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error('Supabase service-role configuration is required');
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
-  const { data, error } = await admin.from(table).select(select).eq('id', id).maybeSingle();
-  if (error || !data) throw new Error(`Fixture row not found in ${table}: ${error?.message || id}`);
-  return data;
-}
-
 export async function expectCrossTenantReadDenied(page, table, id) {
   const result = await browserRestById(page, table, id);
   expect(result.status, `${table} RLS request should not fail server-side`).toBeLessThan(500);
@@ -172,9 +146,8 @@ export async function expectCrossTenantReadDenied(page, table, id) {
   expect(rows, `cross-tenant read leaked ${table} ${id}`).toHaveLength(0);
 }
 
-export async function expectNoopCrossTenantWriteDenied(page, table, id, safeColumn) {
-  const original = await serviceRoleRowById(table, id, `id,${safeColumn}`);
-  const result = await browserRestById(page, table, id, 'PATCH', { [safeColumn]: original[safeColumn] });
+export async function expectCrossTenantWriteDenied(page, table, id, patch) {
+  const result = await browserRestById(page, table, id, 'PATCH', patch);
   expect(result.status, `${table} cross-tenant PATCH should not be a server error`).toBeLessThan(500);
   const rows = Array.isArray(result.data) ? result.data : [];
   expect(rows, `cross-tenant write was allowed on ${table} ${id}`).toHaveLength(0);
