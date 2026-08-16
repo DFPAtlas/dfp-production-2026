@@ -10,6 +10,12 @@ interface Props {
   onClose: () => void;
 }
 
+const COMMAND_PROJECT_HEALTH: Array<[string, number]> = [
+  ['Client portal', 78],
+  ['Automation build', 64],
+  ['Website launch', 91],
+];
+
 export default function PreviewModal({ demo, onClose }: Props) {
   useEffect(() => {
     if (!demo) return;
@@ -95,7 +101,7 @@ export default function PreviewModal({ demo, onClose }: Props) {
                     <div className="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
                       <p className="text-[9px] text-slate-500">Project Health</p>
                       <div className="mt-2 space-y-2">
-                        {[['Client portal', 78], ['Automation build', 64], ['Website launch', 91]].map(([n, w]) => (
+                        {COMMAND_PROJECT_HEALTH.map(([n, w]) => (
                           <div key={n}>
                             <div className="mb-1 flex justify-between text-[9px]"><span className="text-slate-400">{n}</span><span className="text-slate-500">{w}%</span></div>
                             <div className="h-1.5 rounded-full bg-slate-800">
