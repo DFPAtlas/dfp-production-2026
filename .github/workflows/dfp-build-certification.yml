@@ -27,9 +27,10 @@ jobs:
     timeout-minutes: 25
 
     steps:
-      - name: Check out repository
+      - name: Check out exact candidate SHA
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -42,13 +43,20 @@ jobs:
         shell: bash
         run: |
           APP_VERSION="$(node -p "require('./package.json').version")"
+          CANDIDATE_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          if [ "$CHECKED_OUT_SHA" != "$CANDIDATE_SHA" ]; then
+            echo "::error::Checked-out SHA does not match candidate SHA"
+            exit 1
+          fi
           {
             echo "## DFP Build Certification"
             echo "| Field | Value |"
             echo "| --- | --- |"
             echo "| Repository | \`${{ github.repository }}\` |"
-            echo "| Ref | \`${{ github.ref_name }}\` |"
-            echo "| Full SHA | \`${{ github.sha }}\` |"
+            echo "| Ref | \`${{ github.head_ref || github.ref_name }}\` |"
+            echo "| Full candidate SHA | \`${CANDIDATE_SHA}\` |"
+            echo "| Checked-out SHA | \`${CHECKED_OUT_SHA}\` |"
             echo "| Run ID | \`${{ github.run_id }}\` |"
             echo "| App version | \`${APP_VERSION}\` |"
             echo "| Node | \`${{ env.NODE_VERSION }}\` |"
@@ -88,7 +96,7 @@ jobs:
         if: failure() && steps.production_build.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: dfp-build-log-${{ github.sha }}
+          name: dfp-build-log-${{ github.event.pull_request.head.sha || github.sha }}
           path: dfp-build.log
           if-no-files-found: error
           retention-days: 7
