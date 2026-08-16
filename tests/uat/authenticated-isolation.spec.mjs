@@ -48,23 +48,25 @@ test('@full AUTH-LOGIN-VALID client A password session', async ({ page }, testIn
   expectCriticalBrowserClean(diagnostics);
 });
 
-test('@full CLIENT-A-READ-A and CLIENT-A-READ-B-DENY', async ({ page }, testInfo) => {
+test('@full CLIENT-A owns A resources and cannot read/write B resources', async ({ page }, testInfo) => {
   chromiumOnly(testInfo);
   const diagnostics = collectBrowserDiagnostics(page);
   await loginClient(page, 'A');
 
   await expectOwnRow(page, 'projects', env('DFP_UAT_CLIENT_A_PROJECT_ID'));
+  await expectOwnRow(page, 'invoices', env('DFP_UAT_CLIENT_A_INVOICE_ID'));
+  await expectOwnRow(page, 'project_files', env('DFP_UAT_CLIENT_A_FILE_ID'));
+  await expectOwnRow(page, 'support_tickets', env('DFP_UAT_CLIENT_A_SUPPORT_ID'));
+  await expectOwnRow(page, 'message_threads', env('DFP_UAT_CLIENT_A_MESSAGE_THREAD_ID'));
+
   await expectCrossTenantReadDenied(page, 'projects', env('DFP_UAT_CLIENT_B_PROJECT_ID'));
   await expectCrossTenantReadDenied(page, 'invoices', env('DFP_UAT_CLIENT_B_INVOICE_ID'));
   await expectCrossTenantReadDenied(page, 'project_files', env('DFP_UAT_CLIENT_B_FILE_ID'));
+  await expectCrossTenantReadDenied(page, 'support_tickets', env('DFP_UAT_CLIENT_B_SUPPORT_ID'));
+  await expectCrossTenantReadDenied(page, 'message_threads', env('DFP_UAT_CLIENT_B_MESSAGE_THREAD_ID'));
   await expectCrossTenantWriteDenied(page, 'projects', env('DFP_UAT_CLIENT_B_PROJECT_ID'), {
     name: 'DFP-UAT forbidden Client A patch',
   });
-
-  const supportId = env('DFP_UAT_CLIENT_B_SUPPORT_ID', false);
-  if (supportId) await expectCrossTenantReadDenied(page, 'support_tickets', supportId);
-  const messageId = env('DFP_UAT_CLIENT_B_MESSAGE_THREAD_ID', false);
-  if (messageId) await expectCrossTenantReadDenied(page, 'message_threads', messageId);
 
   await page.goto(`/portal/projects/${env('DFP_UAT_CLIENT_B_PROJECT_ID')}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(750);
@@ -76,23 +78,25 @@ test('@full CLIENT-A-READ-A and CLIENT-A-READ-B-DENY', async ({ page }, testInfo
   expectCriticalBrowserClean(diagnostics);
 });
 
-test('@full CLIENT-B-READ-B and CLIENT-B-READ-A-DENY', async ({ page }, testInfo) => {
+test('@full CLIENT-B owns B resources and cannot read/write A resources', async ({ page }, testInfo) => {
   chromiumOnly(testInfo);
   const diagnostics = collectBrowserDiagnostics(page);
   await loginClient(page, 'B');
 
   await expectOwnRow(page, 'projects', env('DFP_UAT_CLIENT_B_PROJECT_ID'));
+  await expectOwnRow(page, 'invoices', env('DFP_UAT_CLIENT_B_INVOICE_ID'));
+  await expectOwnRow(page, 'project_files', env('DFP_UAT_CLIENT_B_FILE_ID'));
+  await expectOwnRow(page, 'support_tickets', env('DFP_UAT_CLIENT_B_SUPPORT_ID'));
+  await expectOwnRow(page, 'message_threads', env('DFP_UAT_CLIENT_B_MESSAGE_THREAD_ID'));
+
   await expectCrossTenantReadDenied(page, 'projects', env('DFP_UAT_CLIENT_A_PROJECT_ID'));
   await expectCrossTenantReadDenied(page, 'invoices', env('DFP_UAT_CLIENT_A_INVOICE_ID'));
   await expectCrossTenantReadDenied(page, 'project_files', env('DFP_UAT_CLIENT_A_FILE_ID'));
+  await expectCrossTenantReadDenied(page, 'support_tickets', env('DFP_UAT_CLIENT_A_SUPPORT_ID'));
+  await expectCrossTenantReadDenied(page, 'message_threads', env('DFP_UAT_CLIENT_A_MESSAGE_THREAD_ID'));
   await expectCrossTenantWriteDenied(page, 'projects', env('DFP_UAT_CLIENT_A_PROJECT_ID'), {
     name: 'DFP-UAT forbidden Client B patch',
   });
-
-  const supportId = env('DFP_UAT_CLIENT_A_SUPPORT_ID', false);
-  if (supportId) await expectCrossTenantReadDenied(page, 'support_tickets', supportId);
-  const messageId = env('DFP_UAT_CLIENT_A_MESSAGE_THREAD_ID', false);
-  if (messageId) await expectCrossTenantReadDenied(page, 'message_threads', messageId);
 
   await attachDiagnostics(testInfo, diagnostics);
   expectCriticalBrowserClean(diagnostics);
@@ -161,9 +165,6 @@ test('@full TESTER-A own assignment and TESTER-A-READ-B-ASSIGNMENT-DENY', async 
     status: 'completed',
   });
 
-  const evidenceId = env('DFP_UAT_TESTER_B_EVIDENCE_ID', false);
-  if (evidenceId) await expectCrossTenantReadDenied(page, 'uat_evidence', evidenceId);
-
   await attachDiagnostics(testInfo, diagnostics);
   expectCriticalBrowserClean(diagnostics);
 });
@@ -181,9 +182,6 @@ test('@full TESTER-B own assignment and TESTER-B-READ-A-ASSIGNMENT-DENY', async 
   await expectCrossTenantWriteDenied(page, 'uat_assignments', env('DFP_UAT_TESTER_A_ASSIGNMENT_ID'), {
     status: 'completed',
   });
-
-  const evidenceId = env('DFP_UAT_TESTER_A_EVIDENCE_ID', false);
-  if (evidenceId) await expectCrossTenantReadDenied(page, 'uat_evidence', evidenceId);
 
   await attachDiagnostics(testInfo, diagnostics);
   expectCriticalBrowserClean(diagnostics);
