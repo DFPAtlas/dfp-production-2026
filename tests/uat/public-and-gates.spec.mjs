@@ -26,9 +26,12 @@ const crossBrowserRoutes = ['/', '/contact', '/login'];
 
 async function dismissCookieConsent(page) {
   const reject = page.getByRole('button', { name: 'Reject Non-Essential' });
-  if (await reject.isVisible().catch(() => false)) {
+  try {
+    await reject.waitFor({ state: 'visible', timeout: 4_000 });
     await reject.click();
-    await expect(page.getByRole('dialog', { name: 'Cookie consent' })).toBeHidden({ timeout: 5_000 }).catch(() => {});
+    await expect(page.getByRole('dialog', { name: 'Cookie consent' })).toBeHidden({ timeout: 5_000 });
+  } catch {
+    // The consent dialog is not shown when a prior preference already exists.
   }
 }
 
