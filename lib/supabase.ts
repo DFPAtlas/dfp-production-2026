@@ -38,16 +38,21 @@ function createSafeStorage() {
   }
 }
 
-export const supabase: SupabaseClient | null = isSupabaseConfigured()
-  ? createClient(supabaseUrl!, supabaseKey!, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storage: createSafeStorage() as never,
-      },
-    })
-  : null;
+// Keep the exported client non-null so application code has one stable contract.
+// When public Supabase configuration is absent (for example during CI typechecking),
+// use inert placeholder credentials. isSupabaseConfigured() remains the source of
+// truth for whether real authentication/data operations are available.
+const clientUrl = supabaseUrl || 'https://unconfigured.invalid.supabase.co';
+const clientKey = supabaseKey || 'unconfigured-anon-key';
+
+export const supabase: SupabaseClient = createClient(clientUrl, clientKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: createSafeStorage() as never,
+  },
+});
 
 let sessionReady = false;
 let sessionReadyCallbacks: Array<() => void> = [];
@@ -58,7 +63,7 @@ function notifySessionReady() {
   sessionReadyCallbacks = [];
 }
 
-if (supabase) {
+if (isSupabaseConfigured()) {
   supabase.auth.onAuthStateChange((event) => {
     if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
       notifySessionReady();
@@ -67,7 +72,7 @@ if (supabase) {
 }
 
 export async function getSessionSafe() {
-  if (!supabase) return null;
+  if (!isSupabaseConfigured()) return null;
   try {
     const { data } = await supabase.auth.getSession();
     return data.session;
@@ -77,7 +82,7 @@ export async function getSessionSafe() {
 }
 
 export function waitForAuthReady(timeoutMs = 6000): Promise<boolean> {
-  if (!supabase) return Promise.resolve(false);
+  if (!isSupabaseConfigured()) return Promise.resolve(false);
   if (sessionReady) return Promise.resolve(true);
   return new Promise((resolve) => {
     const cb = () => resolve(true);
