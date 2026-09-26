@@ -72,6 +72,9 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Secret scan
+        run: npm run scan:secrets
+
       - name: Production build
         id: production_build
         shell: bash
